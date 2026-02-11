@@ -9,14 +9,14 @@ interface Props {
 
 export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params;
-  const post = getPostBySlug(slug);
+  const post = await getPostBySlug(slug);
 
   if (!post) {
     notFound();
   }
 
   const html = marked.parse(post.body ?? "") as string;
-  const mentionedTools = getPostTools(post.id);
+  const mentionedTools = await getPostTools(post.id);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 text-[#111]">

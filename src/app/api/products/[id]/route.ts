@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // Repurposed: now patches the "tools" table
 
@@ -33,59 +33,47 @@ export async function PATCH(
     published?: boolean;
   };
 
-  const db = getDb();
+  const supabase = createAdminClient();
 
-  const existing = db
-    .prepare("SELECT * FROM tools WHERE id = ?")
-    .get(id) as { id: number } | undefined;
+  // Check existence
+  const { data: existing } = await supabase
+    .from("tools")
+    .select("id")
+    .eq("id", id)
+    .maybeSingle();
 
   if (!existing) {
     return NextResponse.json({ error: "Tool not found" }, { status: 404 });
   }
 
-  const stmt = db.prepare(
-    `UPDATE tools
-     SET
-       name = COALESCE(@name, name),
-       tagline = COALESCE(@tagline, tagline),
-       description = COALESCE(@description, description),
-       what_it_is = COALESCE(@what_it_is, what_it_is),
-       who_its_for = COALESCE(@who_its_for, who_its_for),
-       pros = COALESCE(@pros, pros),
-       cons = COALESCE(@cons, cons),
-       use_cases = COALESCE(@use_cases, use_cases),
-       pricing_summary = COALESCE(@pricing_summary, pricing_summary),
-       affiliate_url = COALESCE(@affiliate_url, affiliate_url),
-       website_url = COALESCE(@website_url, website_url),
-       image_url = COALESCE(@image_url, image_url),
-       logo_url = COALESCE(@logo_url, logo_url),
-       category_slug = COALESCE(@category_slug, category_slug),
-       rating = COALESCE(@rating, rating),
-       featured = COALESCE(@featured, featured),
-       published = COALESCE(@published, published)
-     WHERE id = @id`
-  );
+  // Build update object — only include provided fields
+  const update: Record<string, unknown> = {};
+  if (body.name !== undefined) update.name = body.name;
+  if (body.tagline !== undefined) update.tagline = body.tagline;
+  if (body.description !== undefined) update.description = body.description;
+  if (body.what_it_is !== undefined) update.what_it_is = body.what_it_is;
+  if (body.who_its_for !== undefined) update.who_its_for = body.who_its_for;
+  if (body.pros !== undefined) update.pros = body.pros;
+  if (body.cons !== undefined) update.cons = body.cons;
+  if (body.use_cases !== undefined) update.use_cases = body.use_cases;
+  if (body.pricing_summary !== undefined) update.pricing_summary = body.pricing_summary;
+  if (body.affiliate_url !== undefined) update.affiliate_url = body.affiliate_url;
+  if (body.website_url !== undefined) update.website_url = body.website_url;
+  if (body.image_url !== undefined) update.image_url = body.image_url;
+  if (body.logo_url !== undefined) update.logo_url = body.logo_url;
+  if (body.category_slug !== undefined) update.category_slug = body.category_slug;
+  if (body.rating !== undefined) update.rating = body.rating;
+  if (body.featured !== undefined) update.featured = body.featured;
+  if (body.published !== undefined) update.published = body.published;
 
-  stmt.run({
-    id,
-    name: body.name ?? null,
-    tagline: body.tagline ?? null,
-    description: body.description ?? null,
-    what_it_is: body.what_it_is ?? null,
-    who_its_for: body.who_its_for ?? null,
-    pros: body.pros ? JSON.stringify(body.pros) : null,
-    cons: body.cons ? JSON.stringify(body.cons) : null,
-    use_cases: body.use_cases ? JSON.stringify(body.use_cases) : null,
-    pricing_summary: body.pricing_summary ?? null,
-    affiliate_url: body.affiliate_url ?? null,
-    website_url: body.website_url ?? null,
-    image_url: body.image_url ?? null,
-    logo_url: body.logo_url ?? null,
-    category_slug: body.category_slug ?? null,
-    rating: body.rating ?? null,
-    featured: body.featured === undefined ? null : body.featured ? 1 : 0,
-    published: body.published === undefined ? null : body.published ? 1 : 0,
-  });
+  if (Object.keys(update).length === 0) {
+    return NextResponse.json({ ok: true });
+  }
+
+  const { error } = await supabase.from("tools").update(update).eq("id", id);
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true });
 }

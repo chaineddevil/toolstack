@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
   // Store anonymously
   try {
-    saveQuizResponse({
+    await saveQuizResponse({
       ...answers,
       top_pick_slug: result.topPick.slug,
     });
@@ -45,11 +45,11 @@ export async function POST(request: NextRequest) {
     result.topPick.slug,
     ...result.alternatives.map((a) => a.slug),
   ];
-  const tools = getToolsBySlugs(allToolSlugs);
+  const tools = await getToolsBySlugs(allToolSlugs);
   const toolMap = new Map(tools.map((t) => [t.slug, t]));
 
   // Hydrate posts
-  const posts = getPostsBySlugs(result.relatedPostSlugs);
+  const posts = await getPostsBySlugs(result.relatedPostSlugs);
 
   return NextResponse.json({
     topPick: {

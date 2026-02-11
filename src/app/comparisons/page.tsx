@@ -4,8 +4,8 @@ import { getPostsByType } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export default function ComparisonsPage() {
-  const comparisons = getPostsByType("comparison");
+export default async function ComparisonsPage() {
+  const comparisons = await getPostsByType("comparison");
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 text-[#111]">

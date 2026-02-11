@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // Repurposed: now serves the "tools" table instead of "products"
 
 export async function GET() {
-  const db = getDb();
-  const tools = db
-    .prepare(
-      "SELECT * FROM tools ORDER BY created_at DESC"
-    )
-    .all();
-  return NextResponse.json(tools);
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("tools")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
 }
 
 export async function POST(request: NextRequest) {
@@ -40,8 +41,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const db = getDb();
+  const supabase = createAdminClient();
 
+  // Generate unique slug
   const slugBase = body.name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
@@ -49,38 +51,44 @@ export async function POST(request: NextRequest) {
 
   let slug = slugBase || "tool";
   let suffix = 1;
-  while (
-    db.prepare("SELECT 1 FROM tools WHERE slug = ?").get(slug) as
-      | { 1: number }
-      | undefined
-  ) {
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { data: existing } = await supabase
+      .from("tools")
+      .select("id")
+      .eq("slug", slug)
+      .maybeSingle();
+    if (!existing) break;
     slug = `${slugBase}-${suffix++}`;
   }
 
-  const stmt = db.prepare(
-    `INSERT INTO tools (name, slug, tagline, description, what_it_is, who_its_for, pros, cons, use_cases, pricing_summary, affiliate_url, website_url, image_url, logo_url, category_slug, rating, featured)
-     VALUES (@name, @slug, @tagline, @description, @what_it_is, @who_its_for, @pros, @cons, @use_cases, @pricing_summary, @affiliate_url, @website_url, @image_url, @logo_url, @category_slug, @rating, @featured)`
-  );
+  const { data: newTool, error } = await supabase
+    .from("tools")
+    .insert({
+      name: body.name,
+      slug,
+      tagline: body.tagline ?? "",
+      description: body.description,
+      what_it_is: body.what_it_is ?? "",
+      who_its_for: body.who_its_for ?? "",
+      pros: body.pros ?? [],
+      cons: body.cons ?? [],
+      use_cases: body.use_cases ?? [],
+      pricing_summary: body.pricing_summary ?? "",
+      affiliate_url: body.affiliate_url,
+      website_url: body.website_url ?? "",
+      image_url: body.image_url ?? "",
+      logo_url: body.logo_url ?? "",
+      category_slug: body.category_slug ?? "",
+      rating: body.rating ?? null,
+      featured: body.featured ?? false,
+    })
+    .select("id, slug")
+    .single();
 
-  const res = stmt.run({
-    name: body.name,
-    slug,
-    tagline: body.tagline ?? "",
-    description: body.description,
-    what_it_is: body.what_it_is ?? "",
-    who_its_for: body.who_its_for ?? "",
-    pros: JSON.stringify(body.pros ?? []),
-    cons: JSON.stringify(body.cons ?? []),
-    use_cases: JSON.stringify(body.use_cases ?? []),
-    pricing_summary: body.pricing_summary ?? "",
-    affiliate_url: body.affiliate_url,
-    website_url: body.website_url ?? "",
-    image_url: body.image_url ?? "",
-    logo_url: body.logo_url ?? "",
-    category_slug: body.category_slug ?? "",
-    rating: body.rating ?? null,
-    featured: body.featured ? 1 : 0,
-  });
+  if (error || !newTool) {
+    return NextResponse.json({ error: error?.message ?? "Insert failed" }, { status: 500 });
+  }
 
-  return NextResponse.json({ id: res.lastInsertRowid, slug });
+  return NextResponse.json({ id: newTool.id, slug: newTool.slug });
 }

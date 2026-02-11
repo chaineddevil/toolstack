@@ -12,13 +12,13 @@ export default async function ToolsPage({ searchParams }: Props) {
   const params = await searchParams;
   const categorySlug = params.category;
 
-  const categories = getCategories();
+  const categories = await getCategories();
   const activeCategory = categorySlug
-    ? getCategoryBySlug(categorySlug)
+    ? await getCategoryBySlug(categorySlug)
     : undefined;
   const tools = categorySlug
-    ? getToolsByCategory(categorySlug)
-    : getTools();
+    ? await getToolsByCategory(categorySlug)
+    : await getTools();
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 text-[#111]">

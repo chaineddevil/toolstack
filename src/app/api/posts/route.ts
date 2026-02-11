@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET() {
-  const db = getDb();
-  const posts = db
-    .prepare(
-      "SELECT id, slug, title, summary, body, featured_image, post_type, category_slug, published, created_at, updated_at FROM posts ORDER BY created_at DESC"
-    )
-    .all();
-  return NextResponse.json(posts);
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("posts")
+    .select("id, slug, title, summary, body, featured_image, post_type, category_slug, published, created_at, updated_at")
+    .order("created_at", { ascending: false });
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
 }
 
 export async function POST(request: NextRequest) {
@@ -30,8 +31,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const db = getDb();
+  const supabase = createAdminClient();
 
+  // Generate unique slug
   const slugBase = body.title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
@@ -39,49 +41,58 @@ export async function POST(request: NextRequest) {
 
   let slug = slugBase || "post";
   let suffix = 1;
-  while (
-    db.prepare("SELECT 1 FROM posts WHERE slug = ?").get(slug) as
-      | { 1: number }
-      | undefined
-  ) {
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { data: existing } = await supabase
+      .from("posts")
+      .select("id")
+      .eq("slug", slug)
+      .maybeSingle();
+    if (!existing) break;
     slug = `${slugBase}-${suffix++}`;
   }
 
-  const stmt = db.prepare(
-    `INSERT INTO posts (slug, title, body, summary, featured_image, post_type, category_slug, published)
-     VALUES (@slug, @title, @body, @summary, @featured_image, @post_type, @category_slug, @published)`
-  );
+  const { data: newPost, error } = await supabase
+    .from("posts")
+    .insert({
+      slug,
+      title: body.title,
+      body: body.body,
+      summary: body.summary ?? null,
+      featured_image: body.featured_image ?? null,
+      post_type: body.post_type ?? "article",
+      category_slug: body.category_slug ?? null,
+      published: body.published ?? false,
+    })
+    .select("id, slug")
+    .single();
 
-  const res = stmt.run({
-    slug,
-    title: body.title,
-    body: body.body,
-    summary: body.summary ?? null,
-    featured_image: body.featured_image ?? null,
-    post_type: body.post_type ?? "article",
-    category_slug: body.category_slug ?? null,
-    published: body.published ? 1 : 0,
-  });
-
-  const postId = Number(res.lastInsertRowid);
+  if (error || !newPost) {
+    return NextResponse.json({ error: error?.message ?? "Insert failed" }, { status: 500 });
+  }
 
   // Link tools
   const toolSlugs = body.tool_slugs ?? [];
   if (toolSlugs.length > 0) {
-    const getToolStmt = db.prepare("SELECT id FROM tools WHERE slug = ?");
-    const insertLink = db.prepare(
-      `INSERT INTO post_tools (post_id, tool_id, sort_order)
-       VALUES (@post_id, @tool_id, @sort_order)`
-    );
-    db.transaction(() => {
-      let order = 1;
-      for (const toolSlug of toolSlugs) {
-        const tool = getToolStmt.get(toolSlug) as { id: number } | undefined;
-        if (!tool) continue;
-        insertLink.run({ post_id: postId, tool_id: tool.id, sort_order: order++ });
+    const { data: tools } = await supabase
+      .from("tools")
+      .select("id, slug")
+      .in("slug", toolSlugs);
+
+    if (tools && tools.length > 0) {
+      const slugToId = new Map(tools.map((t) => [t.slug, t.id]));
+      const links = toolSlugs
+        .map((s, i) => {
+          const toolId = slugToId.get(s);
+          return toolId ? { post_id: newPost.id, tool_id: toolId, sort_order: i + 1 } : null;
+        })
+        .filter(Boolean);
+
+      if (links.length > 0) {
+        await supabase.from("post_tools").insert(links);
       }
-    })();
+    }
   }
 
-  return NextResponse.json({ id: postId, slug });
+  return NextResponse.json({ id: newPost.id, slug: newPost.slug });
 }

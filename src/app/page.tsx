@@ -12,10 +12,10 @@ const CATEGORY_ICONS: Record<string, string> = {
   briefcase: "📋",
 };
 
-export default function HomePage() {
-  const categories = getCategories();
-  const featuredPosts = getFeaturedPosts(3);
-  const latestPosts = getPosts();
+export default async function HomePage() {
+  const categories = await getCategories();
+  const featuredPosts = await getFeaturedPosts(3);
+  const latestPosts = await getPosts();
 
   return (
     <div className="bg-white text-[#111]">

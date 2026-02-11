@@ -1,5 +1,5 @@
 {
-  "name": "trekking-hub",
+  "name": "toolstack",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,21 +9,17 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "better-sqlite3": "^12.6.2",
-    "drizzle-orm": "^0.45.1",
+    "@supabase/ssr": "^0.8.0",
+    "@supabase/supabase-js": "^2.95.3",
     "marked": "^17.0.1",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-hook-form": "^7.71.1",
-    "react-player": "^3.4.0",
-    "remark": "^15.0.1",
-    "remark-html": "^16.0.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

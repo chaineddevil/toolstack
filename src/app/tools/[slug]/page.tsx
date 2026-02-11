@@ -9,16 +9,16 @@ interface Props {
 
 export default async function ToolReviewPage({ params }: Props) {
   const { slug } = await params;
-  const tool = getToolBySlug(slug);
+  const tool = await getToolBySlug(slug);
 
   if (!tool) {
     notFound();
   }
 
-  const pros = JSON.parse(tool.pros) as string[];
-  const cons = JSON.parse(tool.cons) as string[];
-  const useCases = JSON.parse(tool.use_cases) as string[];
-  const category = getCategoryBySlug(tool.category_slug);
+  const pros = tool.pros as string[];
+  const cons = tool.cons as string[];
+  const useCases = tool.use_cases as string[];
+  const category = await getCategoryBySlug(tool.category_slug);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 text-[#111]">

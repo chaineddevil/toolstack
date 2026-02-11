@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function PATCH(
   request: NextRequest,
@@ -22,62 +22,59 @@ export async function PATCH(
     tool_slugs?: string[];
   };
 
-  const db = getDb();
+  const supabase = createAdminClient();
 
-  const existing = db
-    .prepare("SELECT * FROM posts WHERE id = ?")
-    .get(id) as { id: number } | undefined;
+  // Check existence
+  const { data: existing } = await supabase
+    .from("posts")
+    .select("id")
+    .eq("id", id)
+    .maybeSingle();
 
   if (!existing) {
     return NextResponse.json({ error: "Post not found" }, { status: 404 });
   }
 
-  const stmt = db.prepare(
-    `UPDATE posts
-     SET
-       title = COALESCE(@title, title),
-       summary = COALESCE(@summary, summary),
-       body = COALESCE(@body, body),
-       featured_image = COALESCE(@featured_image, featured_image),
-       post_type = COALESCE(@post_type, post_type),
-       category_slug = COALESCE(@category_slug, category_slug),
-       published = COALESCE(@published, published),
-       updated_at = CURRENT_TIMESTAMP
-     WHERE id = @id`
-  );
+  // Build update object — only include provided fields
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (body.title !== undefined) update.title = body.title;
+  if (body.summary !== undefined) update.summary = body.summary;
+  if (body.body !== undefined) update.body = body.body;
+  if (body.featured_image !== undefined) update.featured_image = body.featured_image;
+  if (body.post_type !== undefined) update.post_type = body.post_type;
+  if (body.category_slug !== undefined) update.category_slug = body.category_slug;
+  if (body.published !== undefined) update.published = body.published;
 
-  stmt.run({
-    id,
-    title: body.title ?? null,
-    summary: body.summary === undefined ? null : body.summary ?? null,
-    body: body.body ?? null,
-    featured_image:
-      body.featured_image === undefined ? null : body.featured_image ?? null,
-    post_type: body.post_type ?? null,
-    category_slug:
-      body.category_slug === undefined ? null : body.category_slug ?? null,
-    published: body.published === undefined ? null : body.published ? 1 : 0,
-  });
+  const { error } = await supabase.from("posts").update(update).eq("id", id);
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   // Update tool links if provided
   if (body.tool_slugs) {
-    const getToolStmt = db.prepare("SELECT id FROM tools WHERE slug = ?");
-    const deleteExisting = db.prepare(
-      "DELETE FROM post_tools WHERE post_id = ?"
-    );
-    const insertLink = db.prepare(
-      `INSERT INTO post_tools (post_id, tool_id, sort_order)
-       VALUES (@post_id, @tool_id, @sort_order)`
-    );
-    db.transaction(() => {
-      deleteExisting.run(id);
-      let order = 1;
-      for (const toolSlug of body.tool_slugs ?? []) {
-        const tool = getToolStmt.get(toolSlug) as { id: number } | undefined;
-        if (!tool) continue;
-        insertLink.run({ post_id: id, tool_id: tool.id, sort_order: order++ });
+    // Delete existing links
+    await supabase.from("post_tools").delete().eq("post_id", id);
+
+    if (body.tool_slugs.length > 0) {
+      const { data: tools } = await supabase
+        .from("tools")
+        .select("id, slug")
+        .in("slug", body.tool_slugs);
+
+      if (tools && tools.length > 0) {
+        const slugToId = new Map(tools.map((t) => [t.slug, t.id]));
+        const links = body.tool_slugs
+          .map((s, i) => {
+            const toolId = slugToId.get(s);
+            return toolId ? { post_id: id, tool_id: toolId, sort_order: i + 1 } : null;
+          })
+          .filter(Boolean);
+
+        if (links.length > 0) {
+          await supabase.from("post_tools").insert(links);
+        }
       }
-    })();
+    }
   }
 
   return NextResponse.json({ ok: true });
