@@ -1,6 +1,6 @@
-/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { getPosts } from "@/lib/db";
+import StorageImage from "@/components/StorageImage";
 
 export const dynamic = "force-dynamic";
 
@@ -30,12 +30,17 @@ export default async function BlogPage() {
               href={`/blog/${post.slug}`}
               className="group flex flex-col overflow-hidden rounded-xl border border-black/5 bg-white transition-shadow hover:shadow-md"
             >
-              {post.featured_image && (
-                <div className="aspect-[16/9] w-full overflow-hidden bg-[#f5f5f5]">
-                  <img
-                    src={post.featured_image}
+              {(post.featured_image_path || post.featured_image) && (
+                <div className="relative aspect-[16/9] w-full overflow-hidden bg-[#f5f5f5]">
+                  <StorageImage
+                    storagePath={post.featured_image_path}
+                    fallbackUrl={post.featured_image}
                     alt={post.title}
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                    width={600}
+                    height={338}
+                    fill
+                    className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                    sizes="(max-width: 768px) 100vw, 33vw"
                   />
                 </div>
               )}

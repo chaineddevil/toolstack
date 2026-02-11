@@ -1,11 +1,23 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element */
-
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import confetti from "canvas-confetti";
 import { QUIZ_STEPS } from "@/lib/quiz";
 import type { Tool, Post } from "@/lib/db";
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+
+function resolveImageSrc(
+  storagePath: string | null | undefined,
+  fallbackUrl: string | null | undefined
+): string | null {
+  if (storagePath) {
+    return `${SUPABASE_URL}/storage/v1/object/public/public-assets/${storagePath}`;
+  }
+  return fallbackUrl ?? null;
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -29,6 +41,103 @@ type QuizResponse = {
   alternatives: RecommendationResult[];
   relatedPosts: Post[];
 };
+
+// ─── Personalization Helpers ─────────────────────────────────────────────────
+
+const ROLE_LABELS: Record<string, string> = {
+  "solo-creator": "a solo creator",
+  "startup-founder": "a startup founder",
+  designer: "a designer",
+  marketer: "a marketer",
+  developer: "a developer",
+  "small-business": "a small business owner",
+  student: "a student",
+  exploring: "exploring your options",
+};
+
+const GOAL_LABELS: Record<string, string> = {
+  automation: "automate your workflows",
+  design: "design better products",
+  "no-code": "build without code",
+  marketing: "grow your audience",
+  "project-mgmt": "manage projects effectively",
+  "make-money": "monetize your skills",
+  learn: "learn new tools",
+};
+
+const TECHNICAL_LABELS: Record<string, string> = {
+  beginner: "beginner-friendly tools",
+  somewhat: "a balance of simplicity and power",
+  very: "advanced, technical tools",
+};
+
+const BUDGET_LABELS: Record<string, string> = {
+  free: "free tools only",
+  "under-20": "tools under $20/mo",
+  "20-100": "tools in the $20–$100/mo range",
+  "no-limit": "premium tools worth the investment",
+};
+
+const WORKFLOW_LABELS: Record<string, string> = {
+  simple: "simple and minimal tools",
+  "feature-rich": "feature-rich power tools",
+  "ai-first": "AI-powered tools",
+  visual: "visual, no-code tools",
+};
+
+const BUDGET_BULLET: Record<string, string> = {
+  free: "Fits your budget — free tier available",
+  "under-20": "Fits your preferred budget range",
+  "20-100": "Strong value at your investment level",
+  "no-limit": "Premium features worth the investment",
+};
+
+const WORKFLOW_BULLET: Record<string, string> = {
+  simple: "Matches your preference for simplicity",
+  "feature-rich": "Packed with the depth you want",
+  "ai-first": "Built with AI at its core",
+  visual: "Designed for visual, no-code workflows",
+};
+
+function buildProfileChecklist(answers: Answers): string[] {
+  const items: string[] = [];
+
+  if (answers.role && ROLE_LABELS[answers.role]) {
+    items.push(`You're ${ROLE_LABELS[answers.role]}`);
+  }
+
+  const primaryGoal = answers.goals[0];
+  if (primaryGoal && GOAL_LABELS[primaryGoal]) {
+    items.push(`You want to ${GOAL_LABELS[primaryGoal]}`);
+  }
+
+  if (answers.technical && TECHNICAL_LABELS[answers.technical]) {
+    items.push(`You prefer ${TECHNICAL_LABELS[answers.technical]}`);
+  }
+
+  if (answers.budget && BUDGET_LABELS[answers.budget]) {
+    items.push(`You're looking for ${BUDGET_LABELS[answers.budget]}`);
+  }
+
+  if (answers.workflow && WORKFLOW_LABELS[answers.workflow]) {
+    items.push(`You value ${WORKFLOW_LABELS[answers.workflow]}`);
+  }
+
+  return items;
+}
+
+function buildMatchBullets(answers: Answers): string[] {
+  const bullets: string[] = [];
+
+  if (answers.workflow && WORKFLOW_BULLET[answers.workflow]) {
+    bullets.push(WORKFLOW_BULLET[answers.workflow]);
+  }
+  if (answers.budget && BUDGET_BULLET[answers.budget]) {
+    bullets.push(BUDGET_BULLET[answers.budget]);
+  }
+
+  return bullets.slice(0, 2);
+}
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -124,24 +233,25 @@ export default function QuizClient() {
       if (step < totalSteps - 1) {
         setStep((s) => s + 1);
       } else {
-        // Last step — submit
-        setAnswers((prev) => {
-          const key = currentStep!.id as keyof Answers;
-          const updated = { ...prev, [key]: value };
-          // We need to submit with the updated answers
-          setLoading(true);
-          setStep(totalSteps);
-          fetch("/api/quiz", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(updated),
+        // Last step — build final answers and submit
+        const key = currentStep!.id as keyof Answers;
+        const finalAnswers = { ...answers, [key]: value };
+        setAnswers(finalAnswers);
+        setLoading(true);
+        setStep(totalSteps);
+
+        fetch("/api/quiz", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(finalAnswers),
+        })
+          .then((res) => {
+            if (!res.ok) throw new Error("Quiz submission failed");
+            return res.json();
           })
-            .then((res) => res.json())
-            .then((data: QuizResponse) => setResults(data))
-            .catch(() => setResults(null))
-            .finally(() => setLoading(false));
-          return updated;
-        });
+          .then((data: QuizResponse) => setResults(data))
+          .catch(() => setResults(null))
+          .finally(() => setLoading(false));
       }
     }, 200);
   }
@@ -184,7 +294,7 @@ export default function QuizClient() {
       );
     }
 
-    return <ResultsView results={results} />;
+    return <ResultsView results={results} answers={answers} />;
   }
 
   // ─── Render: Quiz Step ───────────────────────────────────────────────────
@@ -295,189 +405,432 @@ export default function QuizClient() {
 
 // ─── Results View ────────────────────────────────────────────────────────────
 
-function ResultsView({ results }: { results: QuizResponse }) {
+function ResultsView({
+  results,
+  answers,
+}: {
+  results: QuizResponse;
+  answers: Answers;
+}) {
   const { topPick, alternatives, relatedPosts } = results;
+  const profileChecklist = buildProfileChecklist(answers);
+  const matchBullets = buildMatchBullets(answers);
+  const [shared, setShared] = useState(false);
+
+  // Confetti burst on mount
+  useEffect(() => {
+    const duration = 1500;
+    const end = Date.now() + duration;
+
+    function frame() {
+      // Left side
+      confetti({
+        particleCount: 3,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0.6 },
+        colors: ["#10b981", "#34d399", "#6ee7b7", "#111111", "#fbbf24"],
+        disableForReducedMotion: true,
+      });
+      // Right side
+      confetti({
+        particleCount: 3,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0.6 },
+        colors: ["#10b981", "#34d399", "#6ee7b7", "#111111", "#fbbf24"],
+        disableForReducedMotion: true,
+      });
+
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    }
+
+    frame();
+  }, []);
+
+  async function handleShare() {
+    const toolNames = [
+      topPick.tool?.name,
+      ...alternatives.map((a) => a.tool?.name),
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    const text = `I just found my perfect toolkit on ToolStack: ${toolNames}. Take the quiz to find yours!`;
+    const url = window.location.origin + "/quiz";
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "My ToolStack Results", text, url });
+      } catch {
+        /* user cancelled */
+      }
+    } else {
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      setShared(true);
+      setTimeout(() => setShared(false), 2500);
+    }
+  }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-12 text-[#111]">
-      {/* Header */}
-      <header className="mb-10 text-center">
-        <p className="mb-2 text-sm font-medium text-[#999]">
-          Your quiz results
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-          Your personalized toolkit
-        </h1>
-        <p className="mt-2 text-sm text-[#666]">
-          Based on your answers, here&apos;s what we recommend.
-        </p>
-      </header>
+    <div className="min-h-screen bg-white text-[#111]">
+      <div className="mx-auto max-w-2xl px-4">
+        {/* ================================================================
+            SECTION 1 — YOUR BEST MATCH (Hero Card)
+            ================================================================ */}
+        {topPick.tool && (
+          <section className="pb-10 pt-10 md:pb-12 md:pt-14">
+            <div className="mb-4 flex items-center gap-2">
+              <span className="text-lg">🥇</span>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-[#999]">
+                Your Best Match
+              </h2>
+            </div>
 
-      {/* ── Section A: Top Pick ── */}
-      {topPick.tool && (
-        <section className="mb-10">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#999]">
-            Top Pick
-          </p>
-          <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-sm">
-            {topPick.tool.image_url && (
-              <div className="aspect-[3/1] w-full overflow-hidden bg-[#f5f5f5]">
-                <img
-                  src={topPick.tool.image_url}
-                  alt={topPick.tool.name}
-                  className="h-full w-full object-cover"
-                />
-              </div>
-            )}
-            <div className="p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div className="space-y-1">
-                  <h2 className="text-xl font-semibold">{topPick.tool.name}</h2>
-                  <p className="text-sm text-[#666]">
-                    {topPick.tool.tagline}
-                  </p>
+            <div className="overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.06)]">
+              {/* Hero image */}
+              {resolveImageSrc(
+                topPick.tool.image_path,
+                topPick.tool.image_url
+              ) && (
+                <div className="relative aspect-[2.5/1] w-full overflow-hidden bg-[#f7f7f7]">
+                  <Image
+                    src={
+                      resolveImageSrc(
+                        topPick.tool.image_path,
+                        topPick.tool.image_url
+                      )!
+                    }
+                    alt={topPick.tool.name}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 672px"
+                    priority
+                  />
                 </div>
-                {topPick.tool.rating && (
-                  <span className="shrink-0 text-sm font-medium text-[#666]">
-                    ★ {topPick.tool.rating.toFixed(1)}
-                  </span>
-                )}
-              </div>
-              <div className="mt-4 rounded-lg bg-[#fafafa] px-4 py-3">
-                <p className="text-xs font-medium text-[#999]">
-                  Why we picked this for you
+              )}
+
+              <div className="px-6 pb-7 pt-6 md:px-8">
+                {/* Tool name + rating */}
+                <div className="flex items-start justify-between gap-4">
+                  <h3 className="text-xl font-semibold tracking-tight md:text-2xl">
+                    {topPick.tool.name}
+                  </h3>
+                  {topPick.tool.rating && (
+                    <span className="mt-1 shrink-0 rounded-full bg-[#fafafa] px-2.5 py-1 text-xs font-medium text-[#555]">
+                      ★ {topPick.tool.rating.toFixed(1)}
+                    </span>
+                  )}
+                </div>
+
+                {/* Personalized reason */}
+                <p className="mt-2 text-[15px] leading-relaxed text-[#555]">
+                  {topPick.reason}
                 </p>
-                <p className="mt-1 text-sm text-[#444]">{topPick.reason}</p>
+
+                {/* Match bullets */}
+                {matchBullets.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    {matchBullets.map((bullet) => (
+                      <div key={bullet} className="flex items-center gap-2.5">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-50">
+                          <svg
+                            className="h-3 w-3 text-emerald-600"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            strokeWidth={2.5}
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M4.5 12.75l6 6 9-13.5"
+                            />
+                          </svg>
+                        </span>
+                        <span className="text-sm text-[#444]">{bullet}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* CTA */}
+                <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
+                  <a
+                    href={topPick.tool.affiliate_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex flex-1 items-center justify-center rounded-xl bg-[#111] px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-[#333]"
+                  >
+                    Start with {topPick.tool.name} →
+                  </a>
+                  <Link
+                    href={`/tools/${topPick.tool.slug}`}
+                    className="flex flex-1 items-center justify-center rounded-xl border border-black/10 px-5 py-3 text-sm font-medium text-[#444] transition-colors hover:border-black/20 hover:text-[#111]"
+                  >
+                    Read full review
+                  </Link>
+                </div>
+
+                {/* Trust line */}
+                <p className="mt-3 text-center text-[11px] text-[#bbb]">
+                  Free to try · No credit card required
+                </p>
               </div>
-              <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-                <a
-                  href={topPick.tool.affiliate_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex flex-1 items-center justify-center rounded-xl bg-[#111] px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-[#333]"
-                >
-                  Try {topPick.tool.name} →
-                </a>
-                <Link
-                  href={`/tools/${topPick.tool.slug}`}
-                  className="flex flex-1 items-center justify-center rounded-xl border border-black/10 px-5 py-3 text-sm font-medium text-[#444] transition-colors hover:border-black/25 hover:text-[#111]"
-                >
-                  Read full review
-                </Link>
-              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ================================================================
+            SECTION 2 — EMOTIONAL PAYOFF BANNER
+            ================================================================ */}
+        <section className="pb-10 md:pb-12">
+          <div className="rounded-xl border border-black/[0.04] bg-[#fafafa] px-5 py-8 text-center md:px-8">
+            {/* Completed progress bar */}
+            <div className="mx-auto mb-5 max-w-xs">
+              <div className="h-1 w-full rounded-full bg-emerald-500" />
+            </div>
+
+            <h2 className="text-xl font-semibold tracking-tight md:text-2xl">
+              You&apos;re set up for success.
+            </h2>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[#666]">
+              Based on your answers, we&apos;ve built a toolkit that matches
+              your goals, skills, and budget.
+            </p>
+
+            {/* Profile badge */}
+            <div className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-1.5">
+              <span className="text-sm">🏆</span>
+              <span className="text-xs font-medium text-emerald-700">
+                Matched to your profile
+              </span>
             </div>
           </div>
         </section>
-      )}
 
-      {/* ── Section B: Alternatives ── */}
-      {alternatives.length > 0 && (
-        <section className="mb-10">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#999]">
-            Also worth exploring
-          </p>
-          <div className="space-y-3">
-            {alternatives.map(
-              (alt) =>
-                alt.tool && (
-                  <div
-                    key={alt.slug}
-                    className="flex items-center gap-4 rounded-xl border border-black/5 bg-white p-4 transition-shadow hover:shadow-sm"
-                  >
-                    {alt.tool.image_url && (
-                      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-[#f5f5f5]">
-                        <img
-                          src={alt.tool.image_url}
-                          alt={alt.tool.name}
-                          className="h-full w-full object-cover"
+        {/* ================================================================
+            SECTION 3 — HOW YOU GOT HERE (Progress Snapshot)
+            ================================================================ */}
+        {profileChecklist.length > 0 && (
+          <section className="pb-10 md:pb-12">
+            <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-[#999]">
+              How you got here
+            </h2>
+            <div className="rounded-xl border border-black/[0.04] bg-[#fafafa] px-5 py-5 md:px-6">
+              <div className="space-y-3">
+                {profileChecklist.map((item) => (
+                  <div key={item} className="flex items-center gap-3">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                      <svg
+                        className="h-3 w-3 text-emerald-600"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={2.5}
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M4.5 12.75l6 6 9-13.5"
                         />
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-sm font-semibold text-[#111]">
+                      </svg>
+                    </span>
+                    <span className="text-sm text-[#444]">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ================================================================
+            SECTION 4 — ALSO GREAT FOR YOU (Alternatives)
+            ================================================================ */}
+        {alternatives.length > 0 && (
+          <section className="pb-10 md:pb-12">
+            <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-[#999]">
+              Also great for you
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {alternatives.map(
+                (alt) =>
+                  alt.tool && (
+                    <div
+                      key={alt.slug}
+                      className="flex flex-col rounded-xl border border-black/[0.05] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-shadow hover:shadow-md"
+                    >
+                      {/* Tool image */}
+                      {resolveImageSrc(
+                        alt.tool.image_path,
+                        alt.tool.image_url
+                      ) && (
+                        <div className="relative mb-4 aspect-[16/9] w-full overflow-hidden rounded-lg bg-[#f5f5f5]">
+                          <Image
+                            src={
+                              resolveImageSrc(
+                                alt.tool.image_path,
+                                alt.tool.image_url
+                              )!
+                            }
+                            alt={alt.tool.name}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 640px) 100vw, 300px"
+                          />
+                        </div>
+                      )}
+
+                      <h3 className="text-base font-semibold text-[#111]">
                         {alt.tool.name}
                       </h3>
-                      <p className="line-clamp-1 text-xs text-[#666]">
+                      <p className="mt-1 flex-1 text-[13px] leading-relaxed text-[#666]">
                         {alt.reason}
                       </p>
+                      <a
+                        href={alt.tool.affiliate_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-4 flex w-full items-center justify-center rounded-lg border border-black/10 px-4 py-2.5 text-[13px] font-medium text-[#333] transition-colors hover:border-black/20 hover:bg-[#fafafa] hover:text-[#111]"
+                      >
+                        Explore {alt.tool.name} →
+                      </a>
                     </div>
-                    <a
-                      href={alt.tool.affiliate_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="shrink-0 rounded-lg bg-[#111] px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-[#333]"
-                    >
-                      Explore →
-                    </a>
-                  </div>
-                )
-            )}
-          </div>
-        </section>
-      )}
+                  )
+              )}
+            </div>
+          </section>
+        )}
 
-      {/* ── Section C: Related Articles ── */}
-      {relatedPosts.length > 0 && (
-        <section className="mb-10">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#999]">
-            Learn more
-          </p>
-          <div className="space-y-2">
-            {relatedPosts.map((post) => (
-              <Link
-                key={post.id}
-                href={
-                  post.post_type === "comparison"
-                    ? `/comparisons/${post.slug}`
-                    : `/blog/${post.slug}`
-                }
-                className="flex items-center gap-3 rounded-xl border border-black/5 bg-[#fafafa] p-4 text-sm transition-shadow hover:shadow-sm"
-              >
-                <span className="text-lg">📖</span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-[#111]">{post.title}</p>
+        {/* ================================================================
+            SECTION 5 — LEARN & LEVEL UP
+            ================================================================ */}
+        {relatedPosts.length > 0 && (
+          <section className="pb-10 md:pb-12">
+            <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-[#999]">
+              Learn &amp; level up
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {relatedPosts.slice(0, 2).map((post) => (
+                <Link
+                  key={post.id}
+                  href={
+                    post.post_type === "comparison"
+                      ? `/comparisons/${post.slug}`
+                      : `/blog/${post.slug}`
+                  }
+                  className="group flex flex-col rounded-xl border border-black/[0.05] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-shadow hover:shadow-md"
+                >
+                  {/* Post image */}
+                  {resolveImageSrc(
+                    post.featured_image_path,
+                    post.featured_image
+                  ) && (
+                    <div className="relative mb-3 aspect-[16/9] w-full overflow-hidden rounded-lg bg-[#f5f5f5]">
+                      <Image
+                        src={
+                          resolveImageSrc(
+                            post.featured_image_path,
+                            post.featured_image
+                          )!
+                        }
+                        alt={post.title}
+                        fill
+                        className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                        sizes="(max-width: 640px) 100vw, 300px"
+                      />
+                    </div>
+                  )}
+
+                  <span className="mb-1 text-[11px] font-medium uppercase tracking-wider text-[#bbb]">
+                    {post.post_type === "comparison"
+                      ? "Comparison"
+                      : "Article"}
+                  </span>
+                  <h3 className="flex-1 text-sm font-semibold leading-snug text-[#111] group-hover:text-[#555]">
+                    {post.title}
+                  </h3>
                   {post.summary && (
-                    <p className="line-clamp-1 text-xs text-[#666]">
+                    <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-[#888]">
                       {post.summary}
                     </p>
                   )}
-                </div>
-                <span className="shrink-0 text-xs font-medium text-[#111]">
-                  Read →
-                </span>
-              </Link>
-            ))}
+                  <span className="mt-3 text-xs font-medium text-[#111] group-hover:text-[#555]">
+                    Read →
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ================================================================
+            SECTION 6 — NEXT ACTIONS
+            ================================================================ */}
+        <section className="border-t border-black/[0.04] pb-16 pt-10 md:pb-20">
+          <div className="text-center">
+            <p className="mb-5 text-sm text-[#999]">
+              Not quite right? You can always start over.
+            </p>
+            <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center justify-center rounded-xl border border-black/10 px-6 py-2.5 text-sm font-medium text-[#444] transition-colors hover:border-black/20 hover:text-[#111]"
+              >
+                Retake the quiz
+              </button>
+              <button
+                type="button"
+                onClick={handleShare}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-black/10 px-6 py-2.5 text-sm font-medium text-[#444] transition-colors hover:border-black/20 hover:text-[#111]"
+              >
+                {shared ? (
+                  <>
+                    <svg
+                      className="h-3.5 w-3.5 text-emerald-600"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={2}
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M4.5 12.75l6 6 9-13.5"
+                      />
+                    </svg>
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="h-3.5 w-3.5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={1.5}
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186zm0-12.814a2.25 2.25 0 1 0 3.935-2.186 2.25 2.25 0 0 0-3.935 2.186z"
+                      />
+                    </svg>
+                    Share your toolkit
+                  </>
+                )}
+              </button>
+            </div>
+
+            <p className="mt-8 text-[11px] text-[#ccc]">
+              Some links are affiliate links. You pay the same price; we may
+              earn a small commission.
+            </p>
           </div>
         </section>
-      )}
-
-      {/* Footer CTA */}
-      <div className="rounded-xl border border-black/5 bg-[#fafafa] p-6 text-center">
-        <p className="text-sm text-[#666]">
-          Want to explore more tools?
-        </p>
-        <div className="mt-3 flex flex-col justify-center gap-2 sm:flex-row">
-          <Link
-            href="/tools"
-            className="inline-flex items-center justify-center rounded-xl bg-[#111] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#333]"
-          >
-            Browse all tools
-          </Link>
-          <button
-            type="button"
-            onClick={() => {
-              // Reset quiz
-              window.location.reload();
-            }}
-            className="inline-flex items-center justify-center rounded-xl border border-black/10 px-5 py-2.5 text-sm font-medium text-[#444] transition-colors hover:border-black/25 hover:text-[#111]"
-          >
-            Retake the quiz
-          </button>
-        </div>
-        <p className="mt-3 text-[11px] text-[#999]">
-          Affiliate links. You pay the same price; we may earn a small
-          commission.
-        </p>
       </div>
     </div>
   );

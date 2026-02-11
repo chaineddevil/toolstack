@@ -1,8 +1,19 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element */
-
 import { useEffect, useState, type FormEvent } from "react";
+import Image from "next/image";
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+
+function resolveImageSrc(
+  storagePath: string | null | undefined,
+  fallbackUrl: string | null | undefined
+): string | null {
+  if (storagePath) {
+    return `${SUPABASE_URL}/storage/v1/object/public/public-assets/${storagePath}`;
+  }
+  return fallbackUrl ?? null;
+}
 
 type Tool = {
   id: number;
@@ -12,6 +23,7 @@ type Tool = {
   category_slug: string;
   affiliate_url: string;
   image_url: string;
+  image_path: string | null;
   rating: number | null;
   featured: number;
   published: number;
@@ -148,11 +160,13 @@ export default function AdminToolsPage() {
                 key={tool.id}
                 className="flex items-center gap-3 rounded-xl border border-black/5 bg-[#fafafa] p-3"
               >
-                {tool.image_url && (
-                  <img
-                    src={tool.image_url}
+                {resolveImageSrc(tool.image_path, tool.image_url) && (
+                  <Image
+                    src={resolveImageSrc(tool.image_path, tool.image_url)!}
                     alt={tool.name}
-                    className="h-10 w-10 rounded-lg object-cover"
+                    width={40}
+                    height={40}
+                    className="rounded-lg object-cover"
                   />
                 )}
                 <div className="flex-1">

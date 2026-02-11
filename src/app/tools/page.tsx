@@ -1,6 +1,6 @@
-/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { getCategories, getTools, getToolsByCategory, getCategoryBySlug } from "@/lib/db";
+import StorageImage from "@/components/StorageImage";
 
 export const dynamic = "force-dynamic";
 
@@ -74,11 +74,16 @@ export default async function ToolsPage({ searchParams }: Props) {
               href={`/tools/${tool.slug}`}
               className="group flex flex-col overflow-hidden rounded-xl border border-black/5 bg-white transition-shadow hover:shadow-md"
             >
-              <div className="aspect-[16/9] w-full overflow-hidden bg-[#f5f5f5]">
-                <img
-                  src={tool.image_url}
+              <div className="relative aspect-[16/9] w-full overflow-hidden bg-[#f5f5f5]">
+                <StorageImage
+                  storagePath={tool.image_path}
+                  fallbackUrl={tool.image_url}
                   alt={tool.name}
-                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                  width={600}
+                  height={338}
+                  fill
+                  className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                 />
               </div>
               <div className="flex flex-1 flex-col gap-2 p-5">

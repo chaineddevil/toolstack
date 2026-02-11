@@ -1,7 +1,7 @@
-/* eslint-disable @next/next/no-img-element */
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getToolBySlug, getCategoryBySlug } from "@/lib/db";
+import StorageImage from "@/components/StorageImage";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -68,12 +68,18 @@ export default async function ToolReviewPage({ params }: Props) {
           </div>
         </div>
 
-        {tool.image_url && (
-          <div className="mt-6 overflow-hidden rounded-xl border border-black/5 bg-[#f5f5f5]">
-            <img
-              src={tool.image_url}
+        {(tool.image_path || tool.image_url) && (
+          <div className="relative mt-6 overflow-hidden rounded-xl border border-black/5 bg-[#f5f5f5]" style={{ height: "320px" }}>
+            <StorageImage
+              storagePath={tool.image_path}
+              fallbackUrl={tool.image_url}
               alt={tool.name}
-              className="h-64 w-full object-cover md:h-80"
+              width={900}
+              height={320}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 900px"
+              priority
             />
           </div>
         )}

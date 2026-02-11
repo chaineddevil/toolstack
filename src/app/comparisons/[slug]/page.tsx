@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getPostBySlug, getPostTools } from "@/lib/db";
 import { marked } from "marked";
+import StorageImage from "@/components/StorageImage";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -43,13 +44,18 @@ export default async function ComparisonPage({ params }: Props) {
       </header>
 
       {/* Featured Image */}
-      {post.featured_image && (
-        <div className="mb-10 overflow-hidden rounded-xl border border-black/5 bg-[#f5f5f5]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={post.featured_image}
+      {(post.featured_image_path || post.featured_image) && (
+        <div className="relative mb-10 overflow-hidden rounded-xl border border-black/5 bg-[#f5f5f5]" style={{ height: "320px" }}>
+          <StorageImage
+            storagePath={post.featured_image_path}
+            fallbackUrl={post.featured_image}
             alt={post.title}
-            className="h-64 w-full object-cover md:h-80"
+            width={900}
+            height={320}
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 900px"
+            priority
           />
         </div>
       )}

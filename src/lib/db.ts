@@ -22,6 +22,8 @@ export type Tool = {
   website_url: string;
   image_url: string;
   logo_url: string;
+  image_path: string | null;
+  logo_path: string | null;
   category_slug: string;
   rating: number | null;
   featured: boolean;
@@ -45,6 +47,7 @@ export type Post = {
   summary: string | null;
   body: string;
   featured_image: string | null;
+  featured_image_path: string | null;
   post_type: "article" | "review" | "comparison";
   category_slug: string | null;
   published: boolean;
