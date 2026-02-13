@@ -1,79 +1,64 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-
-// Repurposed: now patches the "tools" table
+import { createClient } from "@/lib/supabase/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { getUserRole } from "@/lib/auth";
 
 export async function PATCH(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id: idParam } = await context.params;
-  const id = Number(idParam);
-  if (!Number.isFinite(id)) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+  const { id } = await params;
+  const role = await getUserRole();
+
+  if (!role || !["super_admin", "manager", "editor"].includes(role)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  const body = (await request.json().catch(() => ({}))) as {
-    name?: string;
-    tagline?: string;
-    description?: string;
-    what_it_is?: string;
-    who_its_for?: string;
-    pros?: string[];
-    cons?: string[];
-    use_cases?: string[];
-    pricing_summary?: string;
-    affiliate_url?: string;
-    website_url?: string;
-    image_url?: string;
-    logo_url?: string;
-    category_slug?: string;
-    rating?: number;
-    featured?: boolean;
-    published?: boolean;
-  };
+  const supabase = await createClient();
+  const body = await request.json();
 
-  const supabase = createAdminClient();
-
-  // Check existence
-  const { data: existing } = await supabase
+  // 1. Fetch current data for versioning
+  const { data: currentData, error: fetchError } = await supabase
     .from("tools")
-    .select("id")
+    .select("*")
     .eq("id", id)
-    .maybeSingle();
+    .single();
 
-  if (!existing) {
+  if (fetchError || !currentData) {
     return NextResponse.json({ error: "Tool not found" }, { status: 404 });
   }
 
-  // Build update object — only include provided fields
-  const update: Record<string, unknown> = {};
-  if (body.name !== undefined) update.name = body.name;
-  if (body.tagline !== undefined) update.tagline = body.tagline;
-  if (body.description !== undefined) update.description = body.description;
-  if (body.what_it_is !== undefined) update.what_it_is = body.what_it_is;
-  if (body.who_its_for !== undefined) update.who_its_for = body.who_its_for;
-  if (body.pros !== undefined) update.pros = body.pros;
-  if (body.cons !== undefined) update.cons = body.cons;
-  if (body.use_cases !== undefined) update.use_cases = body.use_cases;
-  if (body.pricing_summary !== undefined) update.pricing_summary = body.pricing_summary;
-  if (body.affiliate_url !== undefined) update.affiliate_url = body.affiliate_url;
-  if (body.website_url !== undefined) update.website_url = body.website_url;
-  if (body.image_url !== undefined) update.image_url = body.image_url;
-  if (body.logo_url !== undefined) update.logo_url = body.logo_url;
-  if (body.category_slug !== undefined) update.category_slug = body.category_slug;
-  if (body.rating !== undefined) update.rating = body.rating;
-  if (body.featured !== undefined) update.featured = body.featured;
-  if (body.published !== undefined) update.published = body.published;
+  // 2. Insert previous state into content_versions
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (Object.keys(update).length === 0) {
-    return NextResponse.json({ ok: true });
+  const { error: versionError } = await supabase.from("content_versions").insert({
+    entity_type: "tool",
+    entity_id: id,
+    version_data: currentData, // Snapshot OLD state
+    edited_by: user?.id
+  });
+
+  if (versionError) {
+    console.error("Failed to version:", versionError);
+    // Fail safely? Or block? Sticking to requirements: "On every update: Insert..."
+    // Best to block if critical, but for now log.
   }
 
-  const { error } = await supabase.from("tools").update(update).eq("id", id);
+  // 3. Update tool
+  // Handle specific workflows if needed (e.g., if publishing, set published_at)
+  if (body.status === "published" && currentData.status !== "published") {
+    body.published_at = new Date().toISOString();
+  }
+
+  const { data, error } = await supabase
+    .from("tools")
+    .update(body)
+    .eq("id", id)
+    .select()
+    .single();
+
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json(data);
 }

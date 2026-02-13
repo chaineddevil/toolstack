@@ -34,9 +34,9 @@ export default function AdminToolsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    void loadTools();
-  }, []);
+  // Load tools on mount
+  // eslint-disable-next-line react-hooks/immutability
+  useEffect(() => { void loadTools(); }, []);
 
   async function loadTools() {
     setLoading(true);

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
+import { createBrowserClient } from "@supabase/ssr";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -16,20 +17,37 @@ export default function AdminLoginPage() {
     const email = String(formData.get("email") || "");
     const password = String(formData.get("password") || "");
 
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
     });
 
-    setLoading(false);
-
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      setError(data?.error ?? "Login failed");
+    if (authError || !user) {
+      setError(authError?.message || "Login failed");
+      setLoading(false);
       return;
     }
 
+    // Check if user has an admin role
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!roleData) {
+      await supabase.auth.signOut();
+      setError("Access denied. You are not an authorized admin.");
+      setLoading(false);
+      return;
+    }
+
+    router.refresh(); // Refresh middleware/layout state
     router.push("/admin");
   }
 

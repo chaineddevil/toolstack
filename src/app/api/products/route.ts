@@ -1,94 +1,63 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { getUserRole } from "@/lib/auth";
 
-// Repurposed: now serves the "tools" table instead of "products"
+export async function POST(request: NextRequest) {
+  const role = await getUserRole();
+  if (!role || !["super_admin", "manager", "editor"].includes(role)) {
+    // Allow data_entry to create but with limited status? OR block?
+    // Spec: "data_entry: create draft"
+    if (role !== "data_entry") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+  }
 
-export async function GET() {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
+  const body = await request.json();
+
+  // Basic validation (can use Zod here too, but frontend did it)
+  // Ensure data_entry created items are drafts
+  if (role === "data_entry") {
+    body.status = "draft";
+  }
+
+  // Set submitted_by
+  const { data: { user } } = await supabase.auth.getUser();
+  body.submitted_by = user?.id;
+
   const { data, error } = await supabase
     .from("tools")
-    .select("*")
-    .order("created_at", { ascending: false });
+    .insert(body)
+    .select()
+    .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Initial version
+  await supabase.from("content_versions").insert({
+    entity_type: "tool",
+    entity_id: data.id,
+    version_data: data,
+    edited_by: user?.id
+  });
+
   return NextResponse.json(data);
 }
 
-export async function POST(request: NextRequest) {
-  const body = (await request.json().catch(() => ({}))) as {
-    name?: string;
-    tagline?: string;
-    description?: string;
-    what_it_is?: string;
-    who_its_for?: string;
-    pros?: string[];
-    cons?: string[];
-    use_cases?: string[];
-    pricing_summary?: string;
-    affiliate_url?: string;
-    website_url?: string;
-    image_url?: string;
-    logo_url?: string;
-    category_slug?: string;
-    rating?: number;
-    featured?: boolean;
-  };
+export async function GET(request: NextRequest) {
+  const supabase = await createClient();
+  const url = new URL(request.url);
+  const publishedOnly = url.searchParams.get("published") === "true";
 
-  if (!body.name || !body.description || !body.affiliate_url) {
-    return NextResponse.json(
-      { error: "name, description, and affiliate_url are required" },
-      { status: 400 }
-    );
+  let query = supabase.from("tools").select("*").order("name");
+
+  if (publishedOnly) {
+    query = query.eq("status", "published");
   }
 
-  const supabase = createAdminClient();
-
-  // Generate unique slug
-  const slugBase = body.name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  let slug = slugBase || "tool";
-  let suffix = 1;
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const { data: existing } = await supabase
-      .from("tools")
-      .select("id")
-      .eq("slug", slug)
-      .maybeSingle();
-    if (!existing) break;
-    slug = `${slugBase}-${suffix++}`;
-  }
-
-  const { data: newTool, error } = await supabase
-    .from("tools")
-    .insert({
-      name: body.name,
-      slug,
-      tagline: body.tagline ?? "",
-      description: body.description,
-      what_it_is: body.what_it_is ?? "",
-      who_its_for: body.who_its_for ?? "",
-      pros: body.pros ?? [],
-      cons: body.cons ?? [],
-      use_cases: body.use_cases ?? [],
-      pricing_summary: body.pricing_summary ?? "",
-      affiliate_url: body.affiliate_url,
-      website_url: body.website_url ?? "",
-      image_url: body.image_url ?? "",
-      logo_url: body.logo_url ?? "",
-      category_slug: body.category_slug ?? "",
-      rating: body.rating ?? null,
-      featured: body.featured ?? false,
-    })
-    .select("id, slug")
-    .single();
-
-  if (error || !newTool) {
-    return NextResponse.json({ error: error?.message ?? "Insert failed" }, { status: 500 });
-  }
-
-  return NextResponse.json({ id: newTool.id, slug: newTool.slug });
+  const { data, error } = await query;
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
 }
