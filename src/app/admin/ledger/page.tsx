@@ -54,6 +54,7 @@ export default async function LedgerPage() {
         .limit(50);
 
     // Cast to our defined type
+    // We are confident in the shape because we explicitly selected the relations
     const entries = (rawEntries as unknown as LedgerEntryWithRelations[]) || [];
 
     // Calculate Balances (simple aggregation for now)
@@ -150,9 +151,7 @@ export default async function LedgerPage() {
                                     <td className="px-6 py-3 text-[#666]">{new Date(entry.occurred_at).toLocaleDateString()}</td>
                                     <td className="px-6 py-3 font-medium text-[#111]">
                                         {/* Correctly typed access */}
-                                        {Array.isArray(entry.ledger_accounts)
-                                            ? entry.ledger_accounts[0]?.name
-                                            : entry.ledger_accounts?.name || "Unknown"}
+                                        {entry.ledger_accounts?.name || "Unknown"}
                                     </td>
                                     <td className="px-6 py-3">
                                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize 
@@ -162,9 +161,7 @@ export default async function LedgerPage() {
                                         </span>
                                     </td>
                                     <td className="px-6 py-3 text-[#666]">
-                                        {Array.isArray(entry.tools)
-                                            ? entry.tools[0]?.name
-                                            : entry.tools?.name || "-"}
+                                        {entry.tools?.name || "-"}
                                     </td>
                                     <td className="px-6 py-3 text-[#666] font-mono text-xs">{entry.reference_id || "-"}</td>
                                     <td className="px-6 py-3 text-right font-medium">
