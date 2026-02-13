@@ -22,7 +22,7 @@ type LedgerEntryWithRelations = {
     payout_id: number | null;
     ledger_accounts: {
         name: string;
-    } | null; // It's strictly not null in DB but left join default behavior or different array nature often requires null check or array access
+    } | null;
     tools: {
         name: string;
     } | null;
@@ -150,10 +150,6 @@ export default async function LedgerPage() {
                                     <td className="px-6 py-3 text-[#666]">{new Date(entry.occurred_at).toLocaleDateString()}</td>
                                     <td className="px-6 py-3 font-medium text-[#111]">
                                         {/* Correctly typed access */}
-                                        {/* Supabase returns single object for foreign key join if query is singular, but sometimes array. 
-                                In this case 'ledger_accounts(name)' returns { name: string } or null given the Left Join behavior or RLS.
-                                We typed it as object | null.
-                            */}
                                         {Array.isArray(entry.ledger_accounts)
                                             ? entry.ledger_accounts[0]?.name
                                             : entry.ledger_accounts?.name || "Unknown"}
