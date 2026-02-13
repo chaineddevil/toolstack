@@ -10,6 +10,24 @@ const formatCurrency = (amount: number, currency: string = "USD") => {
     }).format(amount);
 };
 
+type LedgerEntryWithRelations = {
+    id: number;
+    occurred_at: string;
+    amount: number;
+    entry_type: "commission" | "adjustment" | "payout";
+    reference_id: string | null;
+    account_id: number;
+    currency: string;
+    notes: string | null;
+    payout_id: number | null;
+    ledger_accounts: {
+        name: string;
+    } | null; // It's strictly not null in DB but left join default behavior or different array nature often requires null check or array access
+    tools: {
+        name: string;
+    } | null;
+};
+
 export default async function LedgerPage() {
     const role = await getUserRole();
     if (!role || !["super_admin", "manager"].includes(role)) {
@@ -25,7 +43,7 @@ export default async function LedgerPage() {
         .order("name");
 
     // Fetch recent entries (limit 50 for dashboard)
-    const { data: entries } = await supabase
+    const { data: rawEntries } = await supabase
         .from("ledger_entries")
         .select(`
         *,
@@ -35,8 +53,10 @@ export default async function LedgerPage() {
         .order("occurred_at", { ascending: false })
         .limit(50);
 
+    // Cast to our defined type
+    const entries = (rawEntries as unknown as LedgerEntryWithRelations[]) || [];
+
     // Calculate Balances (simple aggregation for now)
-    // In a real app, use a dedicated RPC function or materialized view
     const { data: allEntries } = await supabase
         .from("ledger_entries")
         .select("account_id, amount, entry_type");
@@ -129,8 +149,14 @@ export default async function LedgerPage() {
                                 <tr key={entry.id} className="hover:bg-[#fafafa]">
                                     <td className="px-6 py-3 text-[#666]">{new Date(entry.occurred_at).toLocaleDateString()}</td>
                                     <td className="px-6 py-3 font-medium text-[#111]">
-                                        {/* @ts-expect-error join */}
-                                        {entry.ledger_accounts?.name}
+                                        {/* Correctly typed access */}
+                                        {/* Supabase returns single object for foreign key join if query is singular, but sometimes array. 
+                                In this case 'ledger_accounts(name)' returns { name: string } or null given the Left Join behavior or RLS.
+                                We typed it as object | null.
+                            */}
+                                        {Array.isArray(entry.ledger_accounts)
+                                            ? entry.ledger_accounts[0]?.name
+                                            : entry.ledger_accounts?.name || "Unknown"}
                                     </td>
                                     <td className="px-6 py-3">
                                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize 
@@ -140,8 +166,9 @@ export default async function LedgerPage() {
                                         </span>
                                     </td>
                                     <td className="px-6 py-3 text-[#666]">
-                                        {/* @ts-expect-error join */}
-                                        {entry.tools?.name || "-"}
+                                        {Array.isArray(entry.tools)
+                                            ? entry.tools[0]?.name
+                                            : entry.tools?.name || "-"}
                                     </td>
                                     <td className="px-6 py-3 text-[#666] font-mono text-xs">{entry.reference_id || "-"}</td>
                                     <td className="px-6 py-3 text-right font-medium">
