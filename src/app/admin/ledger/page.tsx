@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getUserRole } from "@/lib/auth";
 
@@ -88,9 +89,12 @@ export default async function LedgerPage() {
                     <button className="rounded-lg border border-black/10 px-4 py-2 text-sm font-medium hover:bg-gray-50">
                         Export CSV
                     </button>
-                    <button className="rounded-lg bg-[#111] px-4 py-2 text-sm font-medium text-white hover:bg-[#333]">
+                    <Link
+                        href="/admin/ledger/new"
+                        className="rounded-lg bg-[#111] px-4 py-2 text-sm font-medium text-white hover:bg-[#333]"
+                    >
                         Add Transaction
-                    </button>
+                    </Link>
                 </div>
             </header>
 
