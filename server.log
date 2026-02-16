@@ -1,0 +1,19 @@
+
+> toolstack@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.3.182:3000
+- Environments: .env.local
+
+✓ Starting...
+✓ Ready in 852ms
+ GET / 200 in 1726ms (compile: 473ms, render: 1254ms)
+⨯ upstream image response failed for https://pixabay.com/images/download/miezekieze-cat-9643209_1920.jpg 403
+ GET / 200 in 1380ms (compile: 56ms, render: 1324ms)
+⨯ upstream image response failed for https://pixabay.com/images/download/miezekieze-cat-9643209_1920.jpg 403
+ GET /blog/slsld 200 in 1086ms (compile: 749ms, render: 337ms)
+⨯ upstream image response failed for https://pixabay.com/images/download/miezekieze-cat-9643209_1920.jpg 403
+ GET / 200 in 639ms (compile: 3ms, render: 636ms)
+⨯ upstream image response failed for https://pixabay.com/images/download/miezekieze-cat-9643209_1920.jpg 403

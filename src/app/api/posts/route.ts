@@ -18,11 +18,24 @@ export async function POST(request: NextRequest) {
   }
 
   const { data: { user } } = await supabase.auth.getUser();
-  body.submitted_by = user?.id;
+
+  // Map form fields to DB columns
+  const postData = {
+    ...body,
+    submitted_by: user?.id,
+    body: body.content, // Map content -> body
+    featured_image: body.image_url, // Map image_url -> featured_image
+  };
+
+  // Remove the old keys to avoid "column does not exist" errors
+  delete postData.content;
+  delete postData.image_url;
+  // relations are handled separately, so remove if present
+  delete postData.tool_ids;
 
   const { data, error } = await supabase
     .from("posts")
-    .insert(body)
+    .insert(postData)
     .select()
     .single();
 

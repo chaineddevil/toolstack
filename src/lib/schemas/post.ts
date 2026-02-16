@@ -7,7 +7,7 @@ export const postSchema = z.object({
     summary: z.string().optional(),
     content: z.string().optional(), // Markdown body
     image_url: z.string().optional(),
-    post_type: z.enum(["article", "review", "comparison"]).default("article"),
+    post_type: z.enum(["article", "review", "comparison"]),
     category_slug: z.string().optional(),
 
     // CMS Fields
@@ -15,7 +15,7 @@ export const postSchema = z.object({
     meta_title: z.string().max(60).optional(),
     meta_description: z.string().max(160).optional(),
     canonical_url: z.string().url().optional().or(z.literal("")),
-    is_indexed: z.boolean().default(true),
+    is_indexed: z.boolean(),
 
     // Relations (handled separately usually, but can be part of form state)
     tool_ids: z.array(z.number()).optional(),
