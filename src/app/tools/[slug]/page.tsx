@@ -1,11 +1,56 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { getToolBySlug, getCategoryBySlug } from "@/lib/db";
 import StorageImage from "@/components/StorageImage";
+import {
+  SITE_NAME,
+  absoluteUrl,
+  resolveImageUrl,
+  toolReviewJsonLd,
+  breadcrumbJsonLd,
+} from "@/lib/seo";
 
 interface Props {
   params: Promise<{ slug: string }>;
 }
+
+// ─── Dynamic Metadata ───────────────────────────────────────────────────────
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const tool = await getToolBySlug(slug);
+  if (!tool) return {};
+
+  const title = `${tool.name} Review${tool.rating ? ` (${tool.rating.toFixed(1)}/5)` : ""} — ${SITE_NAME}`;
+  const description =
+    tool.tagline ||
+    `In-depth review of ${tool.name}. Pros, cons, pricing, and who it's best for.`;
+  const canonical = absoluteUrl(`/tools/${slug}`);
+  const image = resolveImageUrl(tool.image_path, tool.image_url);
+
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      type: "article",
+      title,
+      description,
+      url: canonical,
+      siteName: SITE_NAME,
+      ...(image && { images: [{ url: image, width: 1200, height: 630 }] }),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      ...(image && { images: [image] }),
+    },
+  };
+}
+
+// ─── Page Component ─────────────────────────────────────────────────────────
 
 export default async function ToolReviewPage({ params }: Props) {
   const { slug } = await params;
@@ -20,8 +65,46 @@ export default async function ToolReviewPage({ params }: Props) {
   const useCases = tool.use_cases as string[];
   const category = await getCategoryBySlug(tool.category_slug);
 
+  const image = resolveImageUrl(tool.image_path, tool.image_url);
+  const pageUrl = absoluteUrl(`/tools/${slug}`);
+
+  // JSON-LD schemas
+  const reviewLd = toolReviewJsonLd({
+    name: tool.name,
+    description: tool.tagline || tool.description,
+    url: pageUrl,
+    image,
+    rating: tool.rating,
+    pros,
+    cons,
+    pricingSummary: tool.pricing_summary,
+  });
+
+  const breadcrumbItems = [
+    { name: "Home", url: absoluteUrl("/") },
+    { name: "Tools", url: absoluteUrl("/tools") },
+  ];
+  if (category) {
+    breadcrumbItems.push({
+      name: category.name,
+      url: absoluteUrl(`/tools?category=${category.slug}`),
+    });
+  }
+  breadcrumbItems.push({ name: tool.name, url: pageUrl });
+  const breadcrumbLd = breadcrumbJsonLd(breadcrumbItems);
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 text-[#111]">
+      {/* JSON-LD */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(reviewLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+      />
+
       {/* Breadcrumb */}
       <nav className="mb-6 flex items-center gap-2 text-xs text-[#999]">
         <Link href="/tools" className="hover:text-[#111]">

@@ -1,11 +1,50 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import "./globals.css";
+import {
+  SITE_URL,
+  SITE_NAME,
+  SITE_TAGLINE,
+  DEFAULT_DESCRIPTION,
+  organizationJsonLd,
+  webSiteJsonLd,
+} from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "ToolStack — Discover the Best SaaS Tools",
-  description:
-    "Honest reviews, real comparisons, and curated recommendations for the best SaaS tools to build, grow, and automate your work.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: DEFAULT_DESCRIPTION,
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    description: DEFAULT_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    description: DEFAULT_DESCRIPTION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  alternates: {
+    canonical: SITE_URL,
+  },
 };
 
 export default function RootLayout({
@@ -15,15 +54,34 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(organizationJsonLd()),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(webSiteJsonLd()),
+          }}
+        />
+      </head>
       <body className="min-h-screen bg-white text-[#111] antialiased">
         <div className="flex min-h-screen flex-col">
           {/* ── Header ── */}
           <header className="sticky top-0 z-50 border-b border-black/5 bg-white/95 backdrop-blur-sm">
             <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
               <Link href="/" className="flex items-center gap-2">
-                <span className="text-base font-semibold tracking-tight">
-                  ToolStack
-                </span>
+                <Image
+                  src="/logo.svg"
+                  alt="SAHYAI"
+                  width={120}
+                  height={28}
+                  priority
+                  className="h-7 w-auto"
+                />
               </Link>
 
               <nav className="hidden items-center gap-6 text-[13px] font-medium text-[#444] md:flex">
@@ -86,9 +144,13 @@ export default function RootLayout({
               <div className="grid gap-8 text-sm md:grid-cols-4">
                 {/* Brand */}
                 <div className="space-y-3">
-                  <p className="text-sm font-semibold tracking-tight text-[#111]">
-                    ToolStack
-                  </p>
+                  <Image
+                    src="/logo.svg"
+                    alt="SAHYAI"
+                    width={100}
+                    height={24}
+                    className="h-6 w-auto"
+                  />
                   <p className="text-xs leading-relaxed text-[#666]">
                     Honest reviews and real comparisons of the best SaaS tools.
                     Built by practitioners, not marketers.

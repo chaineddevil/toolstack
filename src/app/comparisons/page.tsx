@@ -1,8 +1,31 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { getPostsByType } from "@/lib/db";
 import StorageImage from "@/components/StorageImage";
+import { SITE_NAME, absoluteUrl } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: `Comparisons — ${SITE_NAME}`,
+  description:
+    "Side-by-side breakdowns of popular SaaS tools. Compare features, pricing, and use cases to make an informed choice.",
+  alternates: { canonical: absoluteUrl("/comparisons") },
+  openGraph: {
+    title: `Comparisons — ${SITE_NAME}`,
+    description:
+      "Side-by-side breakdowns of popular SaaS tools. Compare features, pricing, and use cases to make an informed choice.",
+    url: absoluteUrl("/comparisons"),
+    siteName: SITE_NAME,
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: `Comparisons — ${SITE_NAME}`,
+    description:
+      "Side-by-side breakdowns of popular SaaS tools. Compare features, pricing, and use cases to make an informed choice.",
+  },
+};
 
 export default async function ComparisonsPage() {
   const comparisons = await getPostsByType("comparison");

@@ -1,4 +1,4 @@
-// ToolStack — Supabase data layer
+// SAHYAI — Supabase data layer
 // All functions are async and use the Supabase client.
 
 import { createClient } from "@/lib/supabase/server";

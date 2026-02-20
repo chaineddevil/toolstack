@@ -103,7 +103,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             <aside className="fixed inset-y-0 left-0 w-64 border-r border-black/5 bg-white">
                 <div className="flex h-14 items-center border-b border-black/5 px-6">
                     <Link href="/admin" className="font-semibold tracking-tight">
-                        ToolStack Admin
+                        SAHYAI Admin
                     </Link>
                     <span className="ml-auto rounded-full bg-black/5 px-2 py-0.5 text-[10px] uppercase font-medium text-[#666]">
                         {role?.replace("_", " ")}

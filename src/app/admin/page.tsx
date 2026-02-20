@@ -5,7 +5,7 @@ export default function AdminHome() {
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-10 text-[#111]">
       <header className="space-y-2">
         <h1 className="text-xl font-semibold tracking-tight">
-          ToolStack Admin
+          SAHYAI Admin
         </h1>
         <p className="text-sm text-[#666]">
           Manage tools, blog posts, and comparisons.

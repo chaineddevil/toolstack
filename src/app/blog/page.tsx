@@ -1,8 +1,31 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { getPosts } from "@/lib/db";
 import StorageImage from "@/components/StorageImage";
+import { SITE_NAME, absoluteUrl } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: `Blog — ${SITE_NAME}`,
+  description:
+    "In-depth reviews, roundups, and guides to help you find the right SaaS tools for your workflow.",
+  alternates: { canonical: absoluteUrl("/blog") },
+  openGraph: {
+    title: `Blog — ${SITE_NAME}`,
+    description:
+      "In-depth reviews, roundups, and guides to help you find the right SaaS tools for your workflow.",
+    url: absoluteUrl("/blog"),
+    siteName: SITE_NAME,
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: `Blog — ${SITE_NAME}`,
+    description:
+      "In-depth reviews, roundups, and guides to help you find the right SaaS tools for your workflow.",
+  },
+};
 
 export default async function BlogPage() {
   const allPosts = await getPosts();

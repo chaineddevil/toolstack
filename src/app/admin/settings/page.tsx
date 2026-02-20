@@ -21,7 +21,7 @@ export default async function SettingsPage() {
 
   // Default values if no settings row exists yet
   const initialData = {
-    site_name: settings?.site_name || "ToolStack",
+    site_name: settings?.site_name || "SAHYAI",
     site_tagline: settings?.site_tagline || "",
     logo_url: settings?.logo_url || "",
     favicon_url: settings?.favicon_url || "",

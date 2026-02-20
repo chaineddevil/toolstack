@@ -458,12 +458,12 @@ function ResultsView({
       .filter(Boolean)
       .join(", ");
 
-    const text = `I just found my perfect toolkit on ToolStack: ${toolNames}. Take the quiz to find yours!`;
+    const text = `I just found my perfect toolkit on SAHYAI: ${toolNames}. Take the quiz to find yours!`;
     const url = window.location.origin + "/quiz";
 
     if (navigator.share) {
       try {
-        await navigator.share({ title: "My ToolStack Results", text, url });
+        await navigator.share({ title: "My SAHYAI Results", text, url });
       } catch {
         /* user cancelled */
       }

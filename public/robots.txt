@@ -1,5 +1,5 @@
-# ToolStack Robots.txt
-# https://toolstack.com
+# SAHYAI Robots.txt
+# https://sahyai.com
 
 User-agent: *
 Allow: /
@@ -45,4 +45,4 @@ User-agent: BLEXBot
 Disallow: /
 
 # Sitemap
-Sitemap: https://toolstack.com/sitemap.xml
+Sitemap: https://sahyai.com/sitemap.xml

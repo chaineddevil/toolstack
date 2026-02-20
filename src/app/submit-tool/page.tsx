@@ -19,7 +19,7 @@ export default function SubmitToolPage() {
           <h1 className="text-xl font-semibold">Thanks for submitting!</h1>
           <p className="text-sm text-[#666]">
             We&apos;ll review your tool and get back to you if it&apos;s a good
-            fit for ToolStack. Most reviews are published within 2 weeks.
+            fit for SAHYAI. Most reviews are published within 2 weeks.
           </p>
         </div>
       </div>

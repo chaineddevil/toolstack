@@ -1,11 +1,34 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+import { SITE_NAME, absoluteUrl } from "@/lib/seo";
+
+export const metadata: Metadata = {
+  title: `About — ${SITE_NAME}`,
+  description:
+    "SAHYAI helps you find the right SaaS tools with honest reviews, real comparisons, and curated recommendations. Built by practitioners.",
+  alternates: { canonical: absoluteUrl("/about") },
+  openGraph: {
+    title: `About — ${SITE_NAME}`,
+    description:
+      "SAHYAI helps you find the right SaaS tools with honest reviews, real comparisons, and curated recommendations.",
+    url: absoluteUrl("/about"),
+    siteName: SITE_NAME,
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: `About — ${SITE_NAME}`,
+    description:
+      "SAHYAI helps you find the right SaaS tools with honest reviews, real comparisons, and curated recommendations.",
+  },
+};
 
 export default function AboutPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 text-[#111]">
       <header className="mb-10 space-y-3">
         <h1 className="text-2xl font-semibold tracking-tight">
-          About ToolStack
+          About SAHYAI
         </h1>
         <p className="text-base text-[#666]">
           We help you find the right SaaS tools — without the noise.
@@ -16,7 +39,7 @@ export default function AboutPage() {
         <section className="space-y-3">
           <h2 className="text-lg font-semibold text-[#111]">What we do</h2>
           <p>
-            ToolStack is a discovery platform for SaaS tools. We write honest
+            SAHYAI is a discovery platform for SaaS tools. We write honest
             reviews, publish detailed comparisons, and curate the best software
             for teams of every size — from solo founders to growing startups.
           </p>
@@ -30,7 +53,7 @@ export default function AboutPage() {
         <section className="space-y-3">
           <h2 className="text-lg font-semibold text-[#111]">How we make money</h2>
           <p>
-            Some links on ToolStack are affiliate links. When you sign up for a
+            Some links on SAHYAI are affiliate links. When you sign up for a
             tool through one of these links, we may earn a small commission — at
             no extra cost to you.
           </p>
@@ -77,7 +100,7 @@ export default function AboutPage() {
           </h2>
           <p>
             If you&apos;re building a SaaS tool and want it reviewed on
-            ToolStack, we&apos;d love to hear from you.
+            SAHYAI, we&apos;d love to hear from you.
           </p>
           <Link
             href="/submit-tool"

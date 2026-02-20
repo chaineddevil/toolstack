@@ -1,8 +1,31 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { getCategories, getTools, getToolsByCategory, getCategoryBySlug } from "@/lib/db";
 import StorageImage from "@/components/StorageImage";
+import { SITE_NAME, absoluteUrl } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: `All Tools — ${SITE_NAME}`,
+  description:
+    "Curated SaaS tools reviewed and tested by practitioners. Browse the full collection or filter by category.",
+  alternates: { canonical: absoluteUrl("/tools") },
+  openGraph: {
+    title: `All Tools — ${SITE_NAME}`,
+    description:
+      "Curated SaaS tools reviewed and tested by practitioners. Browse the full collection or filter by category.",
+    url: absoluteUrl("/tools"),
+    siteName: SITE_NAME,
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: `All Tools — ${SITE_NAME}`,
+    description:
+      "Curated SaaS tools reviewed and tested by practitioners. Browse the full collection or filter by category.",
+  },
+};
 
 interface Props {
   searchParams: Promise<{ category?: string }>;

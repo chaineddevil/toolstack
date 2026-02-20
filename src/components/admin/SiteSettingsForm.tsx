@@ -121,7 +121,7 @@ export default function SiteSettingsForm({
             <input
               {...register("default_meta_title")}
               className="w-full p-2 border rounded-lg"
-              placeholder="ToolStack — Discover the Best SaaS Tools"
+              placeholder="SAHYAI — Discover the Best SaaS Tools"
             />
           </div>
           <div>

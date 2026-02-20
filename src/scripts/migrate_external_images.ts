@@ -242,7 +242,7 @@ async function migratePosts(admin: ReturnType<typeof getAdmin>) {
 
 async function main() {
   console.log("═══════════════════════════════════════════════════════");
-  console.log("  ToolStack — Image Migration to Supabase Storage");
+  console.log("  SAHYAI — Image Migration to Supabase Storage");
   console.log(`  Mode: ${DRY_RUN ? "DRY RUN (no changes)" : "LIVE"}`);
   console.log("═══════════════════════════════════════════════════════\n");
 
