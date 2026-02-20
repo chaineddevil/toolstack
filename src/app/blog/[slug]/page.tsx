@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getPostBySlug, getPostTools } from "@/lib/db";
-import { marked } from "marked";
+import { renderCustomMarkdown } from "@/lib/markdown";
 import StorageImage from "@/components/StorageImage";
 
 interface Props {
@@ -16,8 +16,16 @@ export default async function BlogPostPage({ params }: Props) {
     notFound();
   }
 
-  const html = marked.parse(post.body ?? "") as string;
   const mentionedTools = await getPostTools(post.id);
+
+  // Build tool map for custom markdown rendering
+  const toolMap = new Map(
+    mentionedTools.map((t) => [
+      t.slug,
+      { name: t.name, slug: t.slug, tagline: t.tagline },
+    ])
+  );
+  const html = renderCustomMarkdown(post.body ?? "", toolMap);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 text-[#111]">

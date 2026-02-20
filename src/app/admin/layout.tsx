@@ -26,6 +26,12 @@ const NAV_ITEMS = [
         icon: "FileText",
     },
     {
+        label: "Authors",
+        href: "/admin/authors",
+        roles: ["super_admin", "manager", "editor"],
+        icon: "Users",
+    },
+    {
         label: "Media",
         href: "/admin/media",
         roles: ["super_admin", "manager", "editor"],
