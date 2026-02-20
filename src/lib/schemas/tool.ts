@@ -19,7 +19,7 @@ export const toolSchema = z.object({
     meta_title: z.string().max(60, "Meta Title too long").optional(),
     meta_description: z.string().max(160, "Meta Description too long").optional(),
     canonical_url: z.string().url().optional().or(z.literal("")),
-    is_indexed: z.boolean().default(true),
+    is_indexed: z.boolean(),
 
     // JSONB fields (handled as arrays of strings for simplicity in form)
     pros: z.array(z.string()).optional(),
