@@ -23,12 +23,20 @@ export default async function AdminPostsPage() {
                     <h1 className="text-xl font-semibold text-[#111]">Posts</h1>
                     <p className="text-sm text-[#666]">Manage blog articles and guides.</p>
                 </div>
-                <Link
-                    href="/admin/posts/new"
-                    className="rounded-lg bg-[#111] px-4 py-2 text-sm font-medium text-white hover:bg-[#333]"
-                >
-                    Write New Post
-                </Link>
+                <div className="flex gap-3">
+                    <Link
+                        href="/admin/posts/bulk"
+                        className="rounded-lg border border-black/10 px-4 py-2 text-sm font-medium text-[#111] transition-colors hover:bg-[#fafafa]"
+                    >
+                        Bulk Upload
+                    </Link>
+                    <Link
+                        href="/admin/posts/new"
+                        className="rounded-lg bg-[#111] px-4 py-2 text-sm font-medium text-white hover:bg-[#333]"
+                    >
+                        Write New Post
+                    </Link>
+                </div>
             </header>
 
             <div className="rounded-xl border border-black/5 bg-white overflow-hidden">
